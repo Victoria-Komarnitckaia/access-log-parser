@@ -1,3 +1,3 @@
 enum OperationSystemType {
-    WINDOWS, MacOS, LINUX
+    WINDOWS, MACOS, LINUX
 }
