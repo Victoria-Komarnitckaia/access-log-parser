@@ -8,6 +8,8 @@ public class Statistics {
     private LocalDateTime maxTime;
     private final HashSet<String> existingPages;
     private final HashMap<String, Integer> operationSystemFrequencyOfOccurrence;
+    private final HashSet<String> nonExistingPages;
+    private final HashMap<String, Integer> browserFrequencyOfOccurrence;
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -15,6 +17,8 @@ public class Statistics {
         this.maxTime = LocalDateTime.MIN;
         this.existingPages = new HashSet<>();
         this.operationSystemFrequencyOfOccurrence = new HashMap<>();
+        this.nonExistingPages = new HashSet<>();
+        this.browserFrequencyOfOccurrence = new HashMap<>();
     }
 
     public void addEntry(LogEntry[] logEntry) {
@@ -31,31 +35,24 @@ public class Statistics {
             }
             if (entry.userAgent != null && entry.userAgent.operationSystemType != null) {
                 String operationSystemType = entry.userAgent.operationSystemType.toString();
-                // если уже есть ключ, то прибавляем единицу
-                if (operationSystemFrequencyOfOccurrence.containsKey(operationSystemType)) {
-                    operationSystemFrequencyOfOccurrence.put(
-                            operationSystemType,
-                            operationSystemFrequencyOfOccurrence.get(operationSystemType) + 1
-                    );
-                    // если нет, то кладем ключ и присваиваем значение 1
-                } else {
-                    operationSystemFrequencyOfOccurrence.put(operationSystemType, 1);
-                }
+                setFrequencyOfOccurrence(operationSystemFrequencyOfOccurrence, operationSystemType);
+            }
+            if (entry.referer != null && entry.responseCode == 404) {
+                nonExistingPages.add(entry.referer);
+            }
+            if (entry.userAgent != null && entry.userAgent.browser != null) {
+                String browser = entry.userAgent.browser;
+                setFrequencyOfOccurrence(browserFrequencyOfOccurrence, browser);
             }
         }
     }
 
     public HashMap<String, Double> operationSystemStatistic() {
-        int totalOperationSystem = 0;
-        HashMap<String, Double> operationSystemStatistic = new HashMap<>();
-        for (Integer frequency : operationSystemFrequencyOfOccurrence.values()) {
-            totalOperationSystem += frequency;
-        }
-        for (Map.Entry<String, Integer> entry : operationSystemFrequencyOfOccurrence.entrySet()) {
-            Double value = (double) entry.getValue() / totalOperationSystem;
-            operationSystemStatistic.put(entry.getKey(), value);
-        }
-        return operationSystemStatistic;
+        return getStatistic(operationSystemFrequencyOfOccurrence);
+    }
+
+    public HashMap<String, Double> browserStatistic() {
+        return getStatistic(browserFrequencyOfOccurrence);
     }
 
     public long getTrafficRate() {
@@ -81,5 +78,42 @@ public class Statistics {
 
     public HashMap<String, Integer> getOperationSystemFrequencyOfOccurrence() {
         return operationSystemFrequencyOfOccurrence;
+    }
+
+    public HashSet<String> getNonExistingPages() {
+        return nonExistingPages;
+    }
+
+    public HashMap<String, Integer> getBrowserFrequencyOfOccurrence() {
+        return browserFrequencyOfOccurrence;
+    }
+
+    private void setFrequencyOfOccurrence(
+            HashMap<String, Integer> frequencyOfOccurrenceValue,
+            String value
+    ) {
+        // если уже есть ключ, то прибавляем единицу
+        if (frequencyOfOccurrenceValue.containsKey(value)) {
+            frequencyOfOccurrenceValue.put(
+                    value,
+                    frequencyOfOccurrenceValue.get(value) + 1
+            );
+            // если нет, то кладем ключ и присваиваем значение 1
+        } else {
+            frequencyOfOccurrenceValue.put(value, 1);
+        }
+    }
+
+    private HashMap<String, Double> getStatistic(HashMap<String, Integer> frequencyOfOccurrenceValue) {
+        int totalValue = 0;
+        HashMap<String, Double> statistic = new HashMap<>();
+        for (Integer frequency : frequencyOfOccurrenceValue.values()) {
+            totalValue += frequency;
+        }
+        for (Map.Entry<String, Integer> entry : frequencyOfOccurrenceValue.entrySet()) {
+            Double value = (double) entry.getValue() / totalValue;
+            statistic.put(entry.getKey(), value);
+        }
+        return statistic;
     }
 }
