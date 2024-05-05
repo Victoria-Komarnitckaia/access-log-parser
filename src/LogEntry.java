@@ -70,7 +70,7 @@ public class LogEntry implements Matchable {
 //      " "Mozilla/5.0 (Windows NT 6.1; MegaIndex.ru/2.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.114 Safari/537.36"
 //      пробел и кавычки объединяем в первую группу, значение юзер-агента во вторую
         String userAgentResultValue = matchForSecondGroupValues(logLine, "(\"\\s\")(.*?)(\")");
-        if (userAgentResultValue != null) {
+        if (userAgentResultValue != null && !userAgentResultValue.equals("-")) {
             this.userAgent = new UserAgent(userAgentResultValue);
         } else {
             this.userAgent = null;

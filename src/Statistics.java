@@ -10,6 +10,9 @@ public class Statistics {
     private final HashMap<String, Integer> operationSystemFrequencyOfOccurrence;
     private final HashSet<String> nonExistingPages;
     private final HashMap<String, Integer> browserFrequencyOfOccurrence;
+    private int numberOfBrowsers;
+    private int numberOfFailedRequests;
+    private final Set<String> ipAddresses;
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -19,9 +22,12 @@ public class Statistics {
         this.operationSystemFrequencyOfOccurrence = new HashMap<>();
         this.nonExistingPages = new HashSet<>();
         this.browserFrequencyOfOccurrence = new HashMap<>();
+        this.numberOfBrowsers = 0;
+        this.numberOfFailedRequests = 0;
+        this.ipAddresses=new HashSet<>();
     }
 
-    public void addEntry(LogEntry[] logEntry) {
+    public void addEntry(List<LogEntry> logEntry) {
         for (LogEntry entry : logEntry) {
             totalTraffic += entry.responseSize;
             if (entry.time != null && entry.time.isBefore(minTime)) {
@@ -44,14 +50,37 @@ public class Statistics {
                 String browser = entry.userAgent.browser;
                 setFrequencyOfOccurrence(browserFrequencyOfOccurrence, browser);
             }
+            if (entry.userAgent != null && !entry.userAgent.isBot) {
+                numberOfBrowsers++;
+            }
+            if (entry.responseCode >= 400 && entry.responseCode <= 599) {
+                numberOfFailedRequests++;
+            }
+            if (entry.ipAddr != null) {
+                ipAddresses.add(entry.ipAddr);
+            }
         }
     }
 
-    public HashMap<String, Double> operationSystemStatistic() {
+    public long getAverageTrafficPerUser() {
+        return numberOfBrowsers / ipAddresses.size();
+    }
+
+    public long getAverageOfFailedRequestsPerHour() {
+        long hoursDuration = Duration.between(minTime, maxTime).toHours();
+        return numberOfFailedRequests / hoursDuration;
+    }
+
+    public long getAverageVisitsPerHour() {
+        long hoursDuration = Duration.between(minTime, maxTime).toHours();
+        return numberOfBrowsers / hoursDuration;
+    }
+
+    public HashMap<String, Double> getOperationSystemStatistic() {
         return getStatistic(operationSystemFrequencyOfOccurrence);
     }
 
-    public HashMap<String, Double> browserStatistic() {
+    public HashMap<String, Double> getBrowserStatistic() {
         return getStatistic(browserFrequencyOfOccurrence);
     }
 
@@ -86,6 +115,18 @@ public class Statistics {
 
     public HashMap<String, Integer> getBrowserFrequencyOfOccurrence() {
         return browserFrequencyOfOccurrence;
+    }
+
+    public int getNumberOfBrowsers() {
+        return numberOfBrowsers;
+    }
+
+    public int getNumberOfFailedRequests() {
+        return numberOfFailedRequests;
+    }
+
+    public Set<String> getIpAddresses() {
+        return ipAddresses;
     }
 
     private void setFrequencyOfOccurrence(
