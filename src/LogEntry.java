@@ -64,7 +64,12 @@ public class LogEntry implements Matchable {
 
 //      выбираем путь к странице, с которой перешли на текущую страницу по маске "https://nova-news.ru/search/?rss=1&lg=1" "
 //      пробел и кавычки до урла объединяем в первую группу, сам урл вторую
-        this.referer = matchForSecondGroupValues(logLine, "(\\s\")(\\S*)(\"\\s\")");
+        String refererPattern = matchForSecondGroupValues(logLine, "(\\s\")(\\S*)(\"\\s\")");
+        if (!refererPattern.equals("-")) {
+            this.referer = refererPattern;
+        } else {
+            this.referer = null;
+        }
 
 //      выделяем User-Agent по маске
 //      " "Mozilla/5.0 (Windows NT 6.1; MegaIndex.ru/2.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.114 Safari/537.36"

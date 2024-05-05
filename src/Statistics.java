@@ -2,7 +2,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class Statistics {
+public class Statistics implements Matchable {
     private long totalTraffic;
     private LocalDateTime minTime;
     private LocalDateTime maxTime;
@@ -12,7 +12,9 @@ public class Statistics {
     private final HashMap<String, Integer> browserFrequencyOfOccurrence;
     private int numberOfBrowsers;
     private int numberOfFailedRequests;
-    private final Set<String> ipAddresses;
+    private final List<String> ipAddressesList;
+    private final List<LocalDateTime> noBotTimeList;
+    private final List<String> refererList;
 
     public Statistics() {
         this.totalTraffic = 0;
@@ -24,45 +26,96 @@ public class Statistics {
         this.browserFrequencyOfOccurrence = new HashMap<>();
         this.numberOfBrowsers = 0;
         this.numberOfFailedRequests = 0;
-        this.ipAddresses=new HashSet<>();
+        this.ipAddressesList = new ArrayList<>();
+        this.noBotTimeList = new ArrayList<>();
+        this.refererList = new ArrayList<>();
     }
 
     public void addEntry(List<LogEntry> logEntry) {
         for (LogEntry entry : logEntry) {
             totalTraffic += entry.responseSize;
-            if (entry.time != null && entry.time.isBefore(minTime)) {
-                minTime = entry.time;
+            if (entry.time != null) {
+                if (entry.time.isBefore(minTime)) {
+                    minTime = entry.time;
+                }
+                if (entry.time.isAfter(maxTime)) {
+                    maxTime = entry.time;
+                }
             }
-            if (entry.time != null && entry.time.isAfter(maxTime)) {
-                maxTime = entry.time;
+            if (entry.referer != null) {
+                refererList.add(entry.referer);
+                if (entry.responseCode == 200) {
+                    existingPages.add(entry.referer);
+                }
+                if (entry.responseCode == 404) {
+                    nonExistingPages.add(entry.referer);
+                }
             }
-            if (entry.referer != null && entry.responseCode == 200) {
-                existingPages.add(entry.referer);
-            }
-            if (entry.userAgent != null && entry.userAgent.operationSystemType != null) {
-                String operationSystemType = entry.userAgent.operationSystemType.toString();
-                setFrequencyOfOccurrence(operationSystemFrequencyOfOccurrence, operationSystemType);
-            }
-            if (entry.referer != null && entry.responseCode == 404) {
-                nonExistingPages.add(entry.referer);
-            }
-            if (entry.userAgent != null && entry.userAgent.browser != null) {
-                String browser = entry.userAgent.browser;
-                setFrequencyOfOccurrence(browserFrequencyOfOccurrence, browser);
-            }
-            if (entry.userAgent != null && !entry.userAgent.isBot) {
-                numberOfBrowsers++;
+            if (entry.userAgent != null) {
+                if (entry.userAgent.operationSystemType != null) {
+                    String operationSystemType = entry.userAgent.operationSystemType.toString();
+                    setFrequencyOfOccurrence(operationSystemFrequencyOfOccurrence, operationSystemType);
+                }
+                if (entry.userAgent.browser != null) {
+                    String browser = entry.userAgent.browser;
+                    setFrequencyOfOccurrence(browserFrequencyOfOccurrence, browser);
+                }
+                if (!entry.userAgent.isBot) {
+                    numberOfBrowsers++;
+                    noBotTimeList.add(entry.time);
+                    if (entry.ipAddr != null) {
+                        ipAddressesList.add(entry.ipAddr);
+                    }
+                }
             }
             if (entry.responseCode >= 400 && entry.responseCode <= 599) {
                 numberOfFailedRequests++;
             }
-            if (entry.ipAddr != null) {
-                ipAddresses.add(entry.ipAddr);
-            }
         }
     }
 
+    public int getMaxTrafficPerUser() {
+        HashMap<String, Integer> trafficPerUser = new HashMap<>();
+        ipAddressesList.forEach(ip -> {
+            if (trafficPerUser.containsKey(ip)) {
+                trafficPerUser.put(ip, trafficPerUser.get(ip) + 1);
+            } else {
+                trafficPerUser.put(ip, 1);
+            }
+        });
+        return trafficPerUser.values().stream().max(Integer::compare).get();
+    }
+
+    public HashSet<String> getRefererDomainList() {
+        HashSet<String> refererDomainList = new HashSet<>();
+        refererList.forEach(x -> {
+            String part;
+            if (x.contains("www")) {
+                part = x.split("www.")[1];
+            } else {
+                part = x.split("//")[1];
+            }
+            //      выбираем домен по маске, пример nova-news.ru
+            refererDomainList.add(matchValues(part, "([A-Za-z0-9+_.-]+)"));
+        });
+        return refererDomainList;
+    }
+
+    public HashMap<Integer, Integer> getPeakWebsiteTrafficPerSecond() {
+        HashMap<Integer, Integer> peakWebsiteTrafficPerSecond = new HashMap<>();
+        noBotTimeList.forEach(s -> {
+            int sec = s.getSecond();
+            if (peakWebsiteTrafficPerSecond.containsKey(sec)) {
+                peakWebsiteTrafficPerSecond.put(sec, peakWebsiteTrafficPerSecond.get(sec) + 1);
+            } else {
+                peakWebsiteTrafficPerSecond.put(sec, 1);
+            }
+        });
+        return peakWebsiteTrafficPerSecond;
+    }
+
     public long getAverageTrafficPerUser() {
+        Set<String> ipAddresses = new HashSet<>(ipAddressesList);
         return numberOfBrowsers / ipAddresses.size();
     }
 
@@ -125,8 +178,16 @@ public class Statistics {
         return numberOfFailedRequests;
     }
 
-    public Set<String> getIpAddresses() {
-        return ipAddresses;
+    public List<String> getIpAddressesList() {
+        return ipAddressesList;
+    }
+
+    public List<LocalDateTime> getNoBotTimeList() {
+        return noBotTimeList;
+    }
+
+    public List<String> getRefererList() {
+        return refererList;
     }
 
     private void setFrequencyOfOccurrence(
